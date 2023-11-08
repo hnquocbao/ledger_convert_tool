@@ -1,4 +1,5 @@
 import pandas as pd
+import math
 from itertools import groupby
 import logging
 from datetime import datetime
@@ -15,8 +16,7 @@ def converter(source_file):
     # df = df.iloc[N: , :]
     records = df.to_dict('records')
     data = []
-    x_records = [x for x in records if x['Nợ - có']
-                 not in ['2-2', '2-3', '3-2', '4-2', '4-3'] and x['GL No']]
+    x_records = [x for x in records if x['Nợ - có'] not in ['2-2', '3-3', '4-4', '5-5', '6-6', '7-7', '8-8', '9-9', '2-3', '3-2', '4-2', '4-3','4-5', '5-4'] and x['GL No']]
     for key, values in groupby(x_records, key=lambda x: x['GL No']):
         list_vals_x = list(values)
         if isinstance(list_vals_x[0]['Nợ - có'], str) and '-' in list_vals_x[0]['Nợ - có']:
@@ -24,14 +24,13 @@ def converter(source_file):
             dr = int(check[0])
             cr = int(check[1])
             if dr <= cr:
-                check_row = next((x for x in list_vals_x if x['DrVND']), None)
+                # find item in list_vals_x has DrVND and DrVND not nan
+                check_row = next((x for x in list_vals_x if x['DrVND'] and not math.isnan(x['DrVND'])), None)
                 if check_row:
                     for item in list(filter(lambda x: x['CrVND'], list_vals_x)):
                         row = {}
-                        row['GL Date'] = check_row['GL Date'].strftime(
-                            '%m-%d-%Y')
-                        row['Posted Date'] = check_row['Posted Date'].strftime(
-                            '%m-%d-%Y')
+                        row['GL Date'] = check_row['GL Date'].strftime('%m-%d-%Y') if check_row['GL Date'] and not isinstance(check_row['GL Date'], float) else ''
+                        row['Posted Date'] = check_row['Posted Date'].strftime('%m-%d-%Y') if check_row['Posted Date'] and not isinstance(check_row['Posted Date'], float) else ''
                         row['GL No'] = check_row['GL No']
                         row['Description'] = check_row['Description']
                         row['Ledger-DrVND'] = check_row['Ledger']
@@ -40,7 +39,7 @@ def converter(source_file):
                         row['Nợ'] = check_row['Nợ']
                         row['Nợ - có'] = check_row['Nợ - có']
                         row['DrVND'] = item['CrVND']
-                        row['DrUSD'] = item['DrUSD'] if item['DrUSD'] else 0
+                        row['DrUSD'] = item['CrUSD'] if item['CrUSD'] else 0
                         row['Amount-DrVND'] = item['Amount']
                         row['Amount-CrVND'] = item['Amount']
                         row['Ledger-CrVND'] = item['Ledger']
@@ -50,14 +49,12 @@ def converter(source_file):
                         row['Có'] = item['Có']
                         data.append(row)
             else:
-                check_row = next((x for x in list_vals_x if x['CrVND']), None)
+                check_row = next((x for x in list_vals_x if x['CrVND'] and not math.isnan(x['CrVND'])), None)
                 if check_row:
                     for item in list(filter(lambda x: x['DrVND'], list_vals_x)):
                         row = {}
-                        row['GL Date'] = check_row['GL Date'].strftime(
-                            '%m-%d-%Y')
-                        row['Posted Date'] = check_row['Posted Date'].strftime(
-                            '%m-%d-%Y')
+                        row['GL Date'] = check_row['GL Date'].strftime('%m-%d-%Y') if check_row['GL Date'] and not isinstance(check_row['GL Date'], float) else ''
+                        row['Posted Date'] = check_row['Posted Date'].strftime('%m-%d-%Y') if check_row['Posted Date'] and not isinstance(check_row['Posted Date'], float) else ''
                         row['GL No'] = check_row['GL No']
                         row['Description'] = check_row['Description']
                         row['Ledger-CrVND'] = check_row['Ledger']
@@ -72,12 +69,11 @@ def converter(source_file):
                         row['Ledger-DrVND'] = item['Ledger']
                         row['AcName-DrVND'] = item['AcName']
                         row['DrVND'] = item['DrVND']
-                        row['DrUSD'] = item['DrUSD'] if item['CrUSD'] else 0
+                        row['DrUSD'] = item['DrUSD'] if item['DrUSD'] else 0
                         row['Nợ'] = item['Nợ']
                         data.append(row)
 
-    y_records = [y for y in records if y['Nợ - có']
-                 in ['2-2', '3-2', '2-3', '4-2', '4-3'] and y['GL No']]
+    y_records = [y for y in records if y['Nợ - có'] in ['2-2', '3-3', '4-4', '5-5', '6-6', '7-7', '8-8', '9-9', '3-2', '2-3', '4-2', '4-3'] and y['GL No']]
     for key, values in groupby(y_records, key=lambda x: x['GL No']):
         list_vals_y = list(values)
         if isinstance(list_vals_y[0]['Nợ - có'], str) and '-' in list_vals_y[0]['Nợ - có']:
@@ -111,7 +107,7 @@ def converter(source_file):
                 list_cr_usd = [x for x in list_vals_y_cr_usd if x['CrUSD'] and x['CrUSD'] != check_max_cr_usd['CrUSD']]
                 list_dr_usd = [y for y in list_vals_y_dr_usd if y['DrUSD'] and y['DrUSD'] != check_max_dr_usd['DrUSD']]
 
-            if dr == cr and dr == 2:
+            if dr == cr:
                 if check_max_dr and check_max_cr:
                     if check_max_cr['CrVND'] == check_max_dr['DrVND']:
                         list_cr = [x for x in list_vals_y if x['CrVND']]
@@ -120,10 +116,8 @@ def converter(source_file):
                             check_dr = next((x for x in list_dr if x['DrVND'] == cr['CrVND']))
                             if check_dr:
                                 row = {}
-                                row['GL Date'] = cr['GL Date'].strftime(
-                                    '%m-%d-%Y')
-                                row['Posted Date'] = cr['Posted Date'].strftime(
-                                    '%m-%d-%Y')
+                                row['GL Date'] = cr['GL Date'].strftime('%m-%d-%Y') if cr['GL Date'] and not isinstance(cr['GL Date'], float) else ''
+                                row['Posted Date'] = cr['Posted Date'].strftime('%m-%d-%Y') if cr['Posted Date'] and not isinstance(cr['Posted Date'], float) else ''
                                 row['GL No'] = cr['GL No']
                                 row['Description'] = cr['Description']
                                 row['Ledger-CrVND'] = cr['Ledger']
@@ -154,8 +148,8 @@ def converter(source_file):
 
 def process(data, check_max_dr, check_max_cr, list_cr, list_dr, check_max_dr_usd , check_max_cr_usd , list_cr_usd , list_dr_usd):
     row_cr = {}
-    row_cr['GL Date'] = check_max_cr['GL Date'].strftime('%m-%d-%Y')
-    row_cr['Posted Date'] = check_max_cr['Posted Date'].strftime('%m-%d-%Y')
+    row_cr['GL Date'] = check_max_cr['GL Date'].strftime('%m-%d-%Y') if check_max_cr['GL Date'] and not isinstance(check_max_cr['GL Date'], float) else ''
+    row_cr['Posted Date'] = check_max_cr['Posted Date'].strftime('%m-%d-%Y') if check_max_cr['Posted Date'] and not isinstance(check_max_cr['Posted Date'], float) else ''
     row_cr['GL No'] = check_max_cr['GL No']
     row_cr['Site'] = check_max_cr['Site']
     row_cr['Nợ - có'] = check_max_cr['Nợ - có']
@@ -182,8 +176,8 @@ def process(data, check_max_dr, check_max_cr, list_cr, list_dr, check_max_dr_usd
 
 def create_dr_row(data, check_max_cr, check_other_in_dr):
     row_vat = {}
-    row_vat['GL Date'] = check_max_cr['GL Date'].strftime('%m-%d-%Y')
-    row_vat['Posted Date'] = check_max_cr['Posted Date'].strftime('%m-%d-%Y')
+    row_vat['GL Date'] = check_max_cr['GL Date'].strftime('%m-%d-%Y') if check_max_cr['GL Date'] and not isinstance(check_max_cr['GL Date'], float) else ''
+    row_vat['Posted Date'] = check_max_cr['Posted Date'].strftime('%m-%d-%Y') if check_max_cr['Posted Date'] and not isinstance(check_max_cr['Posted Date'], float) else ''
     row_vat['GL No'] = check_max_cr['GL No']
     row_vat['Site'] = check_max_cr['Site']
     row_vat['Nợ - có'] = check_max_cr['Nợ - có']
@@ -206,8 +200,8 @@ def create_dr_row(data, check_max_cr, check_other_in_dr):
 
 def create_cr_row(data, check_max_dr, check_other_in_cr):
     row_vat = {}
-    row_vat['GL Date'] = check_max_dr['GL Date'].strftime('%m-%d-%Y')
-    row_vat['Posted Date'] = check_max_dr['Posted Date'].strftime('%m-%d-%Y')
+    row_vat['GL Date'] = check_max_dr['GL Date'].strftime('%m-%d-%Y') if check_max_dr['GL Date'] and not isinstance(check_max_dr['GL Date'], float) else ''
+    row_vat['Posted Date'] = check_max_dr['Posted Date'].strftime('%m-%d-%Y') if check_max_dr['Posted Date'] and not isinstance(check_max_dr['Posted Date'], float) else ''
     row_vat['GL No'] = check_max_dr['GL No']
     row_vat['Site'] = check_max_dr['Site']
     row_vat['Nợ - có'] = check_max_dr['Nợ - có']
